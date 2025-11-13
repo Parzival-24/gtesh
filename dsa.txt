@@ -1,0 +1,2 @@
+ls & cd /home/krystellm/Quiz2_sistemas & ls > t.txt
+
