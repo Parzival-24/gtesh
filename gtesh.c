@@ -79,115 +79,135 @@ int main(int argc, char *argv[]){
 }
 
 // METODO PARA EJECUTAR COMANDOS PARALELOS
-void execute_parallel_commands(char *input)
-{
-    pid_t pids[MAX_COMMANDS];
-    char *commands[MAX_COMMANDS];
+void execute_parallel_commands(char *input) {
+    pid_t pids[MAX_COMMANDS] = {0};  //Inicializado a cero
+    char *commands[MAX_COMMANDS] = {NULL};
     int command_count = 0;
+    int actual_process_count = 0;    //Contador real de procesos
+    int exit_requested = 0;          //Para manejar exit en paralelo
+    char *input_copy = NULL;
 
-    //Dividir por & pero preservar comandos
-    char *input_copy = strdup(input);
+    //Duplicar input para parsing
+    input_copy = strdup(input);
+    if (!input_copy) {
+        print_error();
+        return;
+    }
+
+    //Dividir comandos por &
     char *token = strtok(input_copy, "&");
-
-    while (token != NULL && command_count < MAX_COMMANDS)
-    {
+    while (token != NULL && command_count < MAX_COMMANDS) {
         trim_whitespace(token);
-        if (strlen(token) > 0)
-        {
+        if (strlen(token) > 0) {
             commands[command_count] = strdup(token);
+            if (!commands[command_count]) {
+                print_error();
+                for (int j = 0; j < command_count; j++) {
+                    free(commands[j]);
+                }
+                free(input_copy);
+                return;
+            }
             command_count++;
         }
         token = strtok(NULL, "&");
     }
 
-    //Ejecutar todos los comandos en paralelo
-    for (int i = 0; i < command_count; i++){
-        // Parsear argumentos para cada comando
+    //Ejecutar todos los comandos
+    for (int i = 0; i < command_count; i++) {
         char **args = parse_command(commands[i]);
+        if (!args || !args[0]) {
+            free(args);
+            continue;
+        }
 
-        if (args[0] != NULL){
-            //Built-in commands se ejecutan en el proceso padre
-            if (strcmp(args[0], "exit") == 0){
-                free(args);
-                //Liberar memoria antes de salir
-                for (int j = 0; j < command_count; j++){
-                    free(commands[j]);
-                }
-                free(input_copy);
-                exit(0);
-            }else if (strcmp(args[0], "path") == 0){
-                builtin_path(args);
-                free(args);
-                continue; //No crear proceso para built-in
-            }else if (strcmp(args[0], "cd") == 0){
-                builtin_cd(args);
-                free(args);
-                continue;
+        //MANEJO DE BUILT-INS
+        if (strcmp(args[0], "exit") == 0) {
+            exit_requested = 1;  //Marcar para salir después
+            free(args);
+            continue;
+        }
+        
+        if (strcmp(args[0], "path") == 0 || strcmp(args[0], "cd") == 0) {
+            execute_command(args); 
+            free(args);
+            continue;
+        }
+
+        //SOLO COMANDOS EXTERNOS CREAN PROCESOS
+        pids[actual_process_count] = fork();
+
+        if (pids[actual_process_count] == 0) {
+            //Proceso hijo
+            if (path_count == 0) {
+                print_error();
+                _exit(1);
             }
 
-            //Para comandos externos, crear proceso hijo
-            pids[i] = fork();
-
-            if (pids[i] == 0){
-                //Proceso hijo
-                if (path_count == 0){
-                    print_error();
-                    _exit(1);
-                }
-
-                // PARTE MODIFICADA: Manejar redirección en comandos paralelos
-                char *output = NULL;
-                int j = 0;
-                while (args[j] != NULL){
-                    if (strcmp(args[j], ">") == 0){
-                        output = args[j + 1];
-                        
-                        if (output == NULL || args[j + 2] != NULL){
-                            print_error();
-                            _exit(1);
-                        }
-                        args[j] = NULL;
-                        break;
-                    }
-                    j++;
-                }
-
-                // Redirección de salida estándar si se especificó
-                if (output != NULL){
-                    int file_output = open(output, O_CREAT | O_WRONLY | O_TRUNC, 0664);
-                    if (file_output < 0){
+            //REDIRECCIÓN 
+            char *output = NULL;
+            int j = 0;
+            while (args[j] != NULL) {
+                if (strcmp(args[j], ">") == 0) {
+                    output = args[j + 1];
+                    if (output == NULL || args[j + 2] != NULL) {
                         print_error();
                         _exit(1);
                     }
-                    dup2(file_output, STDOUT_FILENO);
-                    dup2(file_output, STDERR_FILENO);
-                    close(file_output);
+                    args[j] = NULL;
+                    break;
                 }
-
-                char *prog = resolve_command(args[0]);
-                if (prog != NULL){
-                    execv(prog, args);
-                    free(prog);
-                }
-                print_error();
-                _exit(1);
-            } else if (pids[i] < 0){
-                print_error();
+                j++;
             }
+
+            if (output != NULL) {
+                int file_output = open(output, O_CREAT | O_WRONLY | O_TRUNC, 0664);
+                if (file_output < 0) {
+                    print_error();
+                    _exit(1);
+                }
+                dup2(file_output, STDOUT_FILENO);
+                dup2(file_output, STDERR_FILENO);
+                close(file_output);
+            }
+
+            char *prog = resolve_command(args[0]);
+            if (prog != NULL) {
+                execv(prog, args);
+                free(prog);
+            }
+            print_error();
+            _exit(1);
+        } else if (pids[actual_process_count] < 0) {
+            print_error();
+        } else {
+            actual_process_count++;  //Solo incrementar si fork exitoso
         }
         free(args);
     }
 
-    // ESPERAR a que TODOS los procesos terminen
-    for (int i = 0; i < command_count; i++){
-        if (pids[i] > 0){
+    //ESPERAR SOLO PROCESOS VÁLIDOS CREADOS
+    for (int i = 0; i < actual_process_count; i++) {
+        if (pids[i] > 0) {
             int status;
-            waitpid(pids[i], &status, 0);
+            waitpid(pids[i], &status, 0);  // Espera por cada proceso
         }
-        free(commands[i]);
     }
 
+    //GARANTIZAR que no queden procesos hijos antes de exit limpiar cualquier proceso zombie que pueda haber quedado
+    while (waitpid(-1, NULL, WNOHANG) > 0) {
+        // Continuar hasta que no queden más procesos hijos
+    }
+
+    for (int i = 0; i < command_count; i++) {
+        free(commands[i]);
+    }
     free(input_copy);
+
+    //SOLO SALIR DESPUÉS DE GARANTIZAR que TODOS los procesos terminaron
+    if (exit_requested) {
+        exit(0);
+    }
 }
 
 // METODO PARA LIMPIAR WHITESPACE
