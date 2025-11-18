@@ -1,0 +1,2 @@
+/bin/ls > out2 out3
+exit

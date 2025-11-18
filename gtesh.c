@@ -57,11 +57,11 @@ int main(int argc, char *argv[]){
         mode = MODE_BATCH;
         input = fopen(argv[1], "r");
         if (input == NULL){
-            perror("Error al abrir el archivo de batch");
+            print_error();
             exit(1);
         }
     }else{
-        fprintf(stderr, "Uso: %s [batch_file]\n", argv[0]);
+        print_error();
         exit(1);
     }
 
@@ -278,7 +278,7 @@ void execute_command(char **args){
             int file_output = open(output, O_CREAT | O_WRONLY | O_TRUNC, 0664); // Abre un archivo para la salida.
             if (file_output < 0){
                 print_error();
-                return;
+                _exit(1);
             }
 
             //Redirigir

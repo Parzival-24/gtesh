@@ -1,0 +1,4 @@
+path /bin /usr/bin
+echo hello
+ls -la /tmp > out_ls.txt
+exit

@@ -1,0 +1,5 @@
+path /bin
+cd /tmp
+/bin/pwd
+cd /this_directory_does_not_exist
+exit

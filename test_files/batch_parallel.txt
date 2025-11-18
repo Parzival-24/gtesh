@@ -1,0 +1,3 @@
+/bin/echo parallel1 & /bin/echo parallel2
+/bin/sleep 1 & /bin/echo after_sleep
+exit

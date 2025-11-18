@@ -1,0 +1,4 @@
+/bin/echo hello
+/bin/echo world > out1.txt
+/bin/pwd
+exit
