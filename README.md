@@ -51,10 +51,81 @@ Imprime exactamente `An error has occurred\n` en stderr para cualquier error de 
 
 ## Pruebas
 
-### Ejecutar todas las pruebas
+### Compilación previa
+```bash
+gcc -std=gnu11 -Wall -Wextra -o gtesh gtesh.c
+```
+
+### Ejecutar todas las pruebas automaticamente
 ```bash
 chmod +x test_files/test_error_messages.sh
 ./test_files/test_error_messages.sh
+```
+
+### Ejecutar pruebas de funcionalidad una a una
+
+#### 1. Prueba básica (echo, redirección, pwd)
+```bash
+./gtesh test_files/batch_basic.txt
+cat out1.txt  # Verificar que contiene "world"
+```
+**Valida:** Funcionalidad básica, Redirección de Salida, Búsqueda y Ejecución
+
+#### 2. Prueba de paralelismo
+```bash
+./gtesh test_files/batch_parallel.txt
+```
+**Valida:** Comandos Paralelos, Manejo de procesos
+
+#### 3. Prueba de redirección con error (múltiples archivos)
+```bash
+./gtesh test_files/batch_redir_error.txt 2>&1 | grep "An error has occurred"
+```
+**Valida:** Robustez y manejo de errores, Redirección de Salida
+
+#### 4. Prueba de cd y path
+```bash
+./gtesh test_files/batch_cd.txt 2>&1
+```
+**Valida:** Comandos incorporados (cd, path), Robustez
+
+#### 5. Prueba de PATH vacío
+```bash
+./gtesh test_files/batch_path_empty.txt 2>&1 | grep "An error has occurred"
+```
+**Valida:** Búsqueda y Ejecución, Robustez
+
+#### 6. Prueba de cd con múltiples argumentos (error)
+```bash
+./gtesh test_files/batch_cd_error.txt 2>&1 | grep "An error has occurred"
+```
+**Valida:** Comandos incorporados, Robustez
+
+#### 7. Prueba de PATH con múltiples directorios
+```bash
+./gtesh test_files/batch_path_test.txt
+head -n 5 out_ls.txt  # Verificar contenido del archivo redirigido
+```
+**Valida:** Búsqueda y Ejecución, Redirección de Salida
+
+#### 8. Prueba de modo interactivo
+```bash
+printf "path /bin\n/bin/echo Hola\nexit\n" | ./gtesh
+```
+**Valida:** Funcionalidad básica (modo interactivo), Comandos incorporados
+
+#### 9. Validación del mensaje de error exacto
+```bash
+./gtesh test_files/batch_redir_error.txt 2> tmp_err.txt 1>/dev/null
+cat tmp_err.txt
+# Debe mostrar exactamente: An error has occurred
+```
+**Valida:** Robustez y manejo de errores
+
+### Limpiar archivos generados por las pruebas
+```bash
+rm -f out1.txt out_ls.txt tmp_err.txt
+rm -rf test_results
 ```
 
 ### Casos de prueba incluidos
