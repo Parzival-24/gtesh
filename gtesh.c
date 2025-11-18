@@ -226,6 +226,11 @@ void execute_command(char **args){
 
     // Built-in: exit
     if (strcmp(args[0], "exit") == 0){
+        // Si tiene argumentos extra, error
+        if (args[1] != NULL){
+            print_error();
+            return;
+        }
         //exit debe terminar el shell con código 0
         exit(0);
     }
@@ -346,16 +351,14 @@ void run_interactive(FILE *input){
         }else{
             char **args = parse_command(line);
             if (args[0] != NULL){
-                if (strcmp(args[0], "exit") == 0){
-                    free(args);
-                    break;
-                }
-                execute_command(args);
+        execute_command(args);  // aquí adentro se maneja exit, cd, path, etc.           
             }
             free(args);
         }
     }
+    
     free(line);
+
 }
 
 void run_batch(FILE *input){
@@ -378,10 +381,6 @@ void run_batch(FILE *input){
         }else{
             char **args = parse_command(line);
             if (args[0] != NULL){
-                if (strcmp(args[0], "exit") == 0){
-                    free(args);
-                    break;
-                }
                 execute_command(args);
             }
             free(args);
@@ -397,35 +396,20 @@ void builtin_path(char **args){
     }
 }
 
-void builtin_cd(char **args){
-    // Si args es nulo, error
-    if (args == NULL){
+// Implementación del built-in cd
+void builtin_cd(char **args){ 
+    if (args == NULL){ 
         print_error();
         return;
     }
 
-    // Caso: "cd" sin argumentos -> ir a HOME
-    if (args[1] == NULL){
-        char *home = getenv("HOME");
-        if (home == NULL){
-            // Fallback, por si no existe HOME
-            home = "/";
-        }
-
-        if (chdir(home) != 0){
-            print_error();
-        }
-        return;
-    }
-
-    // Si tiene más de 1 argumento -> error
-    if (args[2] != NULL){
+    // Debe haber exactamente un argumento: cd <directorio>
+    if (args[1] == NULL || args[2] != NULL){
         print_error();
         return;
     }
-
-    // Intentar cambiar al directorio especificado
-    if (chdir(args[1]) != 0){
+    
+    if (chdir(args[1]) != 0){ 
         print_error();
     }
 }
