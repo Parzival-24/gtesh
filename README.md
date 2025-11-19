@@ -128,6 +128,133 @@ rm -f out1.txt out_ls.txt tmp_err.txt
 rm -rf test_results
 ```
 
+### Pruebas en modo interactivo
+
+#### 1. Abrir shell en modo interactivo
+```bash
+./gtesh
+```
+**Pruebas manuales que puedes ejecutar:**
+
+```
+gtesh> /bin/echo Hola mundo
+Hola mundo
+
+gtesh> /bin/pwd
+/ruta/actual
+
+gtesh> path /bin /usr/bin
+gtesh> echo test
+test
+
+gtesh> cd /tmp
+gtesh> /bin/pwd
+/tmp
+
+gtesh> exit
+```
+
+#### 2. Verificar prompt en modo interactivo
+```bash
+printf "" | ./gtesh
+```
+**Resultado esperado:** Debe mostrar `gtesh> ` (prompt) esperando entrada.
+
+#### 3. Prueba de path y búsqueda relativa (interactivo)
+```bash
+printf "path /bin\necho hello\nexit\n" | ./gtesh
+```
+**Resultado esperado:**
+```
+hello
+```
+**Valida:** Búsqueda en PATH, comandos relativos
+
+#### 4. Prueba de redirección en modo interactivo
+```bash
+printf "path /bin\necho test > output.txt\nexit\n" | ./gtesh
+cat output.txt
+```
+**Resultado esperado:** `output.txt` contiene `test`
+**Valida:** Redirección de Salida
+
+#### 5. Prueba de cd en modo interactivo
+```bash
+printf "cd /tmp\n/bin/pwd\nexit\n" | ./gtesh
+```
+**Resultado esperado:**
+```
+/tmp
+```
+**Valida:** Comando integrado cd
+
+#### 6. Prueba de comandos paralelos en modo interactivo
+```bash
+printf "path /bin\n/bin/echo cmd1 & /bin/echo cmd2\nexit\n" | ./gtesh
+```
+**Resultado esperado:**
+```
+cmd1
+cmd2
+```
+(orden no garantizado)
+**Valida:** Comandos Paralelos
+
+#### 7. Prueba de error en modo interactivo
+```bash
+printf "path /bin\n/bin/ls > file1 file2\nexit\n" | ./gtesh 2>&1 | grep "An error has occurred"
+```
+**Resultado esperado:** `An error has occurred`
+**Valida:** Manejo de errores
+
+#### 8. Prueba de cd con múltiples argumentos (error)
+```bash
+printf "cd /tmp /usr\nexit\n" | ./gtesh 2>&1 | grep "An error has occurred"
+```
+**Resultado esperado:** `An error has occurred`
+**Valida:** Validación de argumentos en builtins
+
+#### 9. Prueba de comando no encontrado (error)
+```bash
+printf "path /bin\ncomando_inexistente_xyz\nexit\n" | ./gtesh 2>&1 | grep "An error has occurred"
+```
+**Resultado esperado:** `An error has occurred`
+**Valida:** Búsqueda y manejo de comandos no encontrados
+
+#### 10. Verificar exit code del shell
+```bash
+./gtesh < /dev/null; echo "Exit code: $?"
+```
+**Resultado esperado:** `Exit code: 0`
+**Valida:** Terminación correcta con exit(0)
+
+#### 11. Prueba de múltiples comandos en secuencia
+```bash
+printf "path /bin /usr/bin\n/bin/echo Inicio\ncd /\n/bin/pwd\n/bin/echo Fin\nexit\n" | ./gtesh
+```
+**Resultado esperado:**
+```
+Inicio
+/
+Fin
+```
+**Valida:** Flujo correcto de múltiples comandos
+
+#### 12. Prueba completa de todas las características
+```bash
+printf "path /bin /usr/bin\necho Step1\ncd /tmp\n/bin/pwd\necho Step2 > step2.txt\n/bin/echo Paralelo1 & /bin/echo Paralelo2\nexit\n" | ./gtesh
+cat step2.txt
+```
+**Resultado esperado:**
+```
+Step1
+/tmp
+Paralelo1
+Paralelo2
+```
+Archivo `step2.txt` contiene `Step2`
+**Valida:** Integración de todas las características
+
 ### Casos de prueba incluidos
 
 **test_files/batch_basic.txt**
